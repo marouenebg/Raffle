@@ -2,17 +2,29 @@
 pragma solidity ^0.8.18;
 
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface/sol";
 error Raffle__NotEnoughEHEntered();
-contract raffle is VRFConsumerBaseV2{
+contract raffle is VRFConsumerBaseV2 {
     /* State variable */
     address payable[] private s_players;
     uint256 private immutable i_entranceFee; 
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+    bytes32 private immutable i_gasLane;
+    bytes64 private immutable i_subscriptionId;
+    uint16  private constant REQUEST_CONFIRMATION = 3 ;
+    uint32  private constant i_callbackGasLimit;
+    uint16  private constant numWords = 1 ;
 
     /* events */
     event RaffleEnter(address indexed player);
+    event RequestRaffleWinner(uint256 indexed requestId);
 
-    constructor(uint256 entranceFee){
+    constructor(address vrfCoordinatorV2, uint256 entranceFee, bytes32 gasLane, bytes64 subscriptionId,uint32 callbackGasLimit) VRFConsumerBaseV2(vrfCoordinatorV2){
         i_entranceFee = entranceFee ;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_gasLane = gasLane;
+        i_subscriptionId = subscriptionId ;
+        i_callbackGasLimit = callbackGasLimit;
     }
 
     function enterRaffle() public payable {
@@ -23,8 +35,14 @@ contract raffle is VRFConsumerBaseV2{
 
     function requestRandomWinner() external {
         //request a random number
-        // once we get it, do something with it
-        // picking number is a 2 transactions process
+        uint256 reequestId = i_vrfCoordinator.requestRandomWords(
+        i_gasLane,
+        i_subscriptionId,
+        REQUEST_CONFIRMATION,
+        i_callbackGasLimit,
+        numWords
+    ); 
+        emit RequestRaffleWinner(reequestId);
     }
 
     function fullfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {}
